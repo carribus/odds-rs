@@ -7,15 +7,29 @@ enum Odds {
 
 impl Odds {
     fn to_decimal(&self) -> Self {
-        Odds::Decimal(0.0)
+        let c = OddsCalculator::new();
+        let p = c.probability_from_odds(self.clone());
+
+        Odds::Decimal(1.0 / p)
     }
 
     fn to_fractional(&self) -> Self {
-        Odds::Fractional(0.0, 0.0)
+        // TODO: Implement algo to convert to a more human readable fraction (using integers only)
+        let c = OddsCalculator::new();
+        let p = c.probability_from_odds(self.clone());
+
+        Odds::Fractional(1.0 / p - 1.0, 1.0)
     }
 
     fn to_american(&self) -> Self {
-        Odds::American(0.0)
+        let c = OddsCalculator::new();
+        let p = c.probability_from_odds(self.clone());
+
+        if p > 0.5 {
+            Odds::American(-(p / (1.0 - p) * 100.0).round())
+        } else {
+            Odds::American(((1.0 - p) / p * 100.0).round())
+        }
     }
 }
 
@@ -36,9 +50,9 @@ impl OddsCalculator {
             Odds::Fractional(n, d) => d/(d+n),
             Odds::American(odds) => {
                 if odds < 0.0 {
-                    odds.abs() / (odds.abs() + 100.0)
+                    (odds.abs() / (odds.abs() + 100.0))
                 } else {
-                    100.0 / (odds + 100.0)
+                    (100.0 / (odds + 100.0))
                 }
             },
         }
@@ -62,6 +76,9 @@ mod tests {
         assert_eq!(calc.odds_from_probability(0.57), Odds::Decimal(1.754386));
         assert_eq!(calc.odds_from_probability(1.0), Odds::Decimal(1.0));
         assert_eq!(calc.odds_from_probability(0.1), Odds::Decimal(10.0));
+        assert_eq!(calc.odds_from_probability(0.2857143), Odds::Decimal(3.4999998));
+        assert_eq!(calc.odds_from_probability(0.35714287), Odds::Decimal(2.8));
+        assert_eq!(calc.odds_from_probability(0.54545456), Odds::Decimal(1.8333333));
     }
 
     #[test]
@@ -72,6 +89,7 @@ mod tests {
         assert_eq!(calc.probability_from_odds(Odds::Decimal(1.36)), 0.7352941);
         assert_eq!(calc.probability_from_odds(Odds::Decimal(1.0)), 1.0);
         assert_eq!(calc.probability_from_odds(Odds::Decimal(5.0)), 0.2);
+        assert_eq!(calc.probability_from_odds(Odds::Decimal(3.4999998)), 0.2857143);
 
         assert_eq!(calc.probability_from_odds(calc.odds_from_probability(0.47)), 0.47);
         assert_eq!(calc.probability_from_odds(calc.odds_from_probability(0.57)), 0.57);
@@ -81,5 +99,40 @@ mod tests {
 
         assert_eq!(calc.probability_from_odds(Odds::American(-120.0)), 0.54545456);
         assert_eq!(calc.probability_from_odds(Odds::American(180.0)), 0.35714287);
+    }
+
+    #[test]
+    fn convert_to_decimal() {
+        let c = OddsCalculator::new();
+
+        assert_eq!(Odds::Fractional(1.0, 1.0).to_decimal(), Odds::Decimal(2.0));
+        assert_eq!(Odds::Fractional(2.0, 1.0).to_decimal(), Odds::Decimal(3.0));
+        assert_eq!(Odds::Fractional(3.0, 1.0).to_decimal(), Odds::Decimal(4.0));
+        assert_eq!(Odds::Fractional(1.0, 4.0).to_decimal(), Odds::Decimal(1.25));
+        assert_eq!(Odds::Fractional(1.0, 3.0).to_decimal(), Odds::Decimal(1.3333334));
+
+        assert_eq!(Odds::American(-120.0).to_decimal(), Odds::Decimal(1.8333333));
+        assert_eq!(Odds::American(-100.0).to_decimal(), Odds::Decimal(2.0));
+        assert_eq!(Odds::American(100.0).to_decimal(), Odds::Decimal(2.0));
+        assert_eq!(Odds::American(150.0).to_decimal(), Odds::Decimal(2.5));
+    }
+
+    #[test]
+    fn convert_to_fractional() {
+        let c = OddsCalculator::new();
+
+        assert_eq!(Odds::Decimal(3.4999998).to_fractional(), Odds::Fractional(2.4999998, 1.0));
+    }
+
+    #[test]
+    fn convert_to_american() {
+        let c = OddsCalculator::new();
+
+        assert_eq!(c.odds_from_probability(0.25).to_american(), Odds::American(300.0));
+        assert_eq!(c.odds_from_probability(0.75).to_american(), Odds::American(-300.0));
+
+        assert_eq!(Odds::Decimal(1.8333333).to_american(), Odds::American(-120.0));
+        assert_eq!(Odds::Decimal(2.8333333).to_american(), Odds::American(183.0));
+        assert_eq!(Odds::Decimal(2.8).to_american(), Odds::American(180.0));
     }
 }
