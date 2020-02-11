@@ -34,7 +34,13 @@ impl OddsCalculator {
         match odds {
             Odds::Decimal(odds) => 1.0 / odds,
             Odds::Fractional(n, d) => d/(d+n),
-            Odds::American(odds) => 0.0,
+            Odds::American(odds) => {
+                if odds < 0.0 {
+                    odds.abs() / (odds.abs() + 100.0)
+                } else {
+                    100.0 / (odds + 100.0)
+                }
+            },
         }
     }
 
@@ -72,5 +78,8 @@ mod tests {
         assert_eq!(calc.probability_from_odds(calc.odds_from_probability(0.67)), 0.67);
 
         assert_eq!(calc.probability_from_odds(Odds::Fractional(5.0, 2.0)), 0.2857143);
+
+        assert_eq!(calc.probability_from_odds(Odds::American(-120.0)), 0.54545456);
+        assert_eq!(calc.probability_from_odds(Odds::American(180.0)), 0.35714287);
     }
 }
