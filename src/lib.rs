@@ -58,8 +58,18 @@ impl OddsCalculator {
         }
     }
 
-    fn expected_return(stake: f32, odds: Odds) -> f32 {
-        unimplemented!()
+    fn expected_return(&self, stake: f32, odds: Odds) -> f32 {
+        match odds {
+            Odds::Decimal(odds) => stake * odds,
+            Odds::Fractional(n, d) => stake + stake * n / d,
+            Odds::American(odds) => {
+                if odds > 0.0 {
+                    stake + odds * (stake / 100.0)
+                } else {
+                    stake - (100.0 / odds) * stake
+                }
+            },
+        }
     }
 }
 
@@ -134,5 +144,32 @@ mod tests {
         assert_eq!(Odds::Decimal(1.8333333).to_american(), Odds::American(-120.0));
         assert_eq!(Odds::Decimal(2.8333333).to_american(), Odds::American(183.0));
         assert_eq!(Odds::Decimal(2.8).to_american(), Odds::American(180.0));
+    }
+
+    #[test]
+    fn test_return_decimal() {
+        let c = OddsCalculator::new();
+
+        assert_eq!(c.expected_return(10.0, Odds::Decimal(2.0)), 20.0);
+        assert_eq!(c.expected_return(10.0, Odds::Decimal(3.5)), 35.0);
+        assert_eq!(c.expected_return(9.50, Odds::Decimal(3.5)), 33.25);
+    }
+
+    #[test]
+    fn test_return_fractional() {
+        let c = OddsCalculator::new();
+
+        assert_eq!(c.expected_return(10.0, Odds::Fractional(1.0, 1.0)), 20.0);
+        assert_eq!(c.expected_return(10.0, Odds::Fractional(2.0, 3.0)), 16.666666);
+    }
+
+    #[test]
+    fn test_return_american() {
+        let c = OddsCalculator::new();
+
+        assert_eq!(c.expected_return(10.0, Odds::American(120.0)), 22.0);
+        assert_eq!(c.expected_return(10.0, Odds::American(-120.0)), 18.333332);
+        assert_eq!(c.expected_return(15.0, Odds::American(119.0)), 32.85);
+        assert_eq!(c.expected_return(13.75, Odds::American(-129.0)), 24.408915);
     }
 }
